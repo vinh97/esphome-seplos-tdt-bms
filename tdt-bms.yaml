@@ -1,21 +1,23 @@
 substitutions:
   name: tdt-bms
   device_description: "Monitor a TDT-BMS via UART-TTL"
-  external_components_source: github.com/vinh97/esphome-seplos-tdt-bms
-#  external_components_source: local
+  external_components_source: github://vinh97/esphome-seplos-tdt-bms@main
   tx_pin: GPIO16
   rx_pin: GPIO17
 
 esphome:
   name: ${name}
   comment: ${device_description}
+  project:
+    name: "syssi.esphome-TDT-bms"
+    version: 2.2.0
 #  project:
 #    name: "syssi.esphome-TDT-bms"
 #    version: 1.1.0
   friendly_name: tdt-bms
 
 esp32:
-  board: esp32dev
+  board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
 #      arduino
@@ -36,7 +38,7 @@ logger:
 
 api:
   encryption:
-    key: !secret api_pass
+    key: "EXe1iYMtrrA79T4c1CFupHCsBDAATNM19wzlBY1wYQc="
 ota:
   platform: esphome
   
@@ -54,37 +56,14 @@ captive_portal:
 
 uart:
   id: uart_0
-  # Please set the default baudrate of your TDT BMS model here. It's sometimes 19200 baud instead of 9600.
   baud_rate: 9600
   data_bits: 8
   stop_bits: 1
   parity: NONE
   tx_pin: ${tx_pin}
   rx_pin: ${rx_pin}
-  # The increased RX buffer size is important because
-  # the full BMS response must fit into the buffer
   rx_buffer_size: 384
-#  debug:
-#    dummy_receiver: false
-#    direction: BOTH
-#    after:
-#      delimiter: "\r"
-#    sequence:
-#     - lambda: UARTDebug::log_string(direction, bytes);
 
-#interval:
-#  - interval: 30s
-#    then:
-#     - uart.write: "~010146A7400C34BC5B685B68FACF\r" # 135Ah 234Ah 234Ah  -- 51,45 V
-#       "bc3235303134363432453030323031464433300d\r" 
-#      bc3031303134363432453030323031464433360d    
-#     ~010146A7400C34BC5B685B68FACF\r" # 135Ah 234Ah 234Ah  -- 51,45 V
-#      - delay: 1s 
-#      - uart.write: "~010146A60000FD9D"  # read capacity
-#      - delay: 1s
-#      - logger.log:
-#         level: INFO
-#          format: "Done. Repeating..."      
 
 tdt_modbus:
   id: modbus0
