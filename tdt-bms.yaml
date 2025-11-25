@@ -1,7 +1,7 @@
 substitutions:
   name: tdt-bms
   device_description: "Monitor a TDT-BMS via UART-TTL"
-  external_components_source: https://github.com/vinh97/esphome-seplos-tdt-bms
+  external_components_source: github.com/vinh97/esphome-seplos-tdt-bms
 #  external_components_source: local
   tx_pin: GPIO16
   rx_pin: GPIO17
