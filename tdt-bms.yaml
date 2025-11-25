@@ -1,0 +1,197 @@
+substitutions:
+  name: tdt-bms
+  device_description: "Monitor a TDT-BMS via UART-TTL"
+#  external_components_source: github://syssi/esphome-TDT-bms@main
+#  external_components_source: local
+  tx_pin: GPIO16
+  rx_pin: GPIO17
+
+esphome:
+  name: ${name}
+  comment: ${device_description}
+#  project:
+#    name: "syssi.esphome-TDT-bms"
+#    version: 1.1.0
+  friendly_name: tdt-bms
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+#      arduino
+
+external_components:
+ - source:
+     type: local
+     path: tdt-bms
+   components: [ tdt_bms, tdt_modbus ]
+   refresh: 0s   
+
+#external_components:
+# - source: ${external_components_source}
+#   refresh: 0s   
+
+# Enable logging
+logger:
+  level: DEBUG 
+# Enable Home Assistant API
+#api:
+#  encryption:
+#    key: "KYH6D656AeIdzDfXNahpqTrdDB0+rjH03pEVK1QRz2w="
+#ota:
+#  password: "ca6ae8ac942ead5d5a3e5da33d858925"
+
+api:
+  encryption:
+    key: !secret api_pass
+ota:
+  platform: esphome
+  password: !secret ota_pass
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: XXX.XXX.XXX.XXX
+    gateway: XXX.XXX.XXX.XXX
+    subnet: 255.255.255.0
+
+
+#captive_portal:
+
+#mqtt:
+#  broker: !secret mqtt_host
+#  username: !secret mqtt_username
+#  password: !secret mqtt_password
+#  id: mqtt_client
+
+uart:
+  id: uart_0
+  # Please set the default baudrate of your TDT BMS model here. It's sometimes 19200 baud instead of 9600.
+  baud_rate: 9600
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  tx_pin: ${tx_pin}
+  rx_pin: ${rx_pin}
+  # The increased RX buffer size is important because
+  # the full BMS response must fit into the buffer
+  rx_buffer_size: 384
+#  debug:
+#    dummy_receiver: false
+#    direction: BOTH
+#    after:
+#      delimiter: "\r"
+#    sequence:
+#     - lambda: UARTDebug::log_string(direction, bytes);
+
+#interval:
+#  - interval: 30s
+#    then:
+#     - uart.write: "~010146A7400C34BC5B685B68FACF\r" # 135Ah 234Ah 234Ah  -- 51,45 V
+#       "bc3235303134363432453030323031464433300d\r" 
+#      bc3031303134363432453030323031464433360d    
+#     ~010146A7400C34BC5B685B68FACF\r" # 135Ah 234Ah 234Ah  -- 51,45 V
+#      - delay: 1s 
+#      - uart.write: "~010146A60000FD9D"  # read capacity
+#      - delay: 1s
+#      - logger.log:
+#         level: INFO
+#          format: "Done. Repeating..."      
+
+tdt_modbus:
+  id: modbus0
+  uart_id: uart_0
+  rx_timeout: 150ms
+
+tdt_bms:
+  - id: bms0
+    address: 0x01
+    protocol_version: 0x01
+    tdt_modbus_id: modbus0
+    update_interval: 10s
+
+sensor:
+  - platform: tdt_bms
+    tdt_bms_id: bms0 
+    min_cell_voltage:
+      name: "min cell voltage"
+    max_cell_voltage:
+      name: "max cell voltage"
+    min_voltage_cell:
+      name: "min voltage cell"
+    max_voltage_cell:
+      name: "max voltage cell"
+    delta_cell_voltage:
+      name: "delta cell voltage"
+    average_cell_voltage:
+      name: "average cell voltage"
+    cell_voltage_1:
+      name: "cell voltage 1"
+    cell_voltage_2:
+      name: "cell voltage 2"
+    cell_voltage_3:
+      name: "cell voltage 3"
+    cell_voltage_4:
+      name: "cell voltage 4"
+    cell_voltage_5:
+      name: "cell voltage 5"
+    cell_voltage_6:
+      name: "cell voltage 6"
+    cell_voltage_7:
+      name: "cell voltage 7"
+    cell_voltage_8:
+      name: "cell voltage 8"
+    cell_voltage_9:
+      name: "cell voltage 9"
+    cell_voltage_10:
+      name: "cell voltage 10"
+    cell_voltage_11:
+      name: "cell voltage 11"
+    cell_voltage_12:
+      name: "cell voltage 12"
+    cell_voltage_13:
+      name: "cell voltage 13"
+    cell_voltage_14:
+      name: "cell voltage 14"
+#    cell_voltage_15:
+#      name: "${name} cell voltage 15"
+#    cell_voltage_16:
+#      name: "${name} cell voltage 16"
+    temperature_1:
+      name: "environment temperature"
+    temperature_2:
+      name: "mosfet temperature"
+    temperature_3:
+      name: "temperature 1"
+    temperature_4:
+      name: "temperature 2"
+    temperature_5:
+      name: "temperature 3"
+    temperature_6:
+      name: "temperature 4"
+    total_voltage:
+      name: "total voltage"
+    current:
+      name: "current"
+    power:
+      name: "power"
+    charging_power:
+      name: "charging power"
+    discharging_power:
+      name: "discharging power"
+    residual_capacity:
+      name: "residual capacity"
+    battery_capacity:
+      name: "battery capacity"
+    rated_capacity:
+      name: "rated capacity"
+    state_of_charge:
+      name: "state of charge"
+    charging_cycles:
+      name: "charging cycles"
+    sampling_voltage:
+      name: "sampling voltage"
+    port_voltage:
+      name: "port voltage"
+    
