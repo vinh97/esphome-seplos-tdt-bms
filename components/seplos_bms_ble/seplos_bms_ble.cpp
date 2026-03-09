@@ -1,6 +1,13 @@
 #include "seplos_bms_ble.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/version.h"
+
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 12, 0)
+#define ADDR_STR(x) x
+#else
+#define ADDR_STR(x) (x).c_str()
+#endif
 
 namespace esphome {
 namespace seplos_bms_ble {
@@ -173,7 +180,7 @@ void SeplosBmsBle::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
           this->parent_->get_characteristic(SEPLOS_BMS_SERVICE_UUID, SEPLOS_BMS_NOTIFY_CHARACTERISTIC_UUID);
       if (char_notify == nullptr) {
         ESP_LOGE(TAG, "[%s] No notify service found at device, not an Seplos v2 BMS..?",
-                 this->parent_->address_str().c_str());
+                 ADDR_STR(this->parent_->address_str()));
         break;
       }
       this->char_notify_handle_ = char_notify->handle;
@@ -188,7 +195,7 @@ void SeplosBmsBle::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
           this->parent_->get_characteristic(SEPLOS_BMS_SERVICE_UUID, SEPLOS_BMS_CONTROL_CHARACTERISTIC_UUID);
       if (char_command == nullptr) {
         ESP_LOGE(TAG, "[%s] No control service found at device, not an BASEN BMS..?",
-                 this->parent_->address_str().c_str());
+                 ADDR_STR(this->parent_->address_str()));
         break;
       }
       this->char_command_handle_ = char_command->handle;
@@ -202,7 +209,7 @@ void SeplosBmsBle::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
     }
     case ESP_GATTC_NOTIFY_EVT: {
       ESP_LOGVV(TAG, "Notification received: %s",
-                format_hex_pretty(param->notify.value, param->notify.value_len).c_str());
+                format_hex_pretty(param->notify.value, param->notify.value_len).c_str());  // NOLINT
 
       this->assemble(param->notify.value, param->notify.value_len);
       break;
@@ -214,7 +221,7 @@ void SeplosBmsBle::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t
 
 void SeplosBmsBle::update() {
   if (this->node_state != espbt::ClientState::ESTABLISHED) {
-    ESP_LOGW(TAG, "[%s] Not connected", this->parent_->address_str().c_str());
+    ESP_LOGW(TAG, "[%s] Not connected", ADDR_STR(this->parent_->address_str()));
     return;
   }
 
@@ -315,7 +322,7 @@ void SeplosBmsBle::decode(const std::vector<uint8_t> &data) {
       break;
     case SEPLOS_CMD_SET_MOSFET_CONTROL:
       ESP_LOGI(TAG, "Switch control response (%zu bytes) received", data.size());
-      ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());
+      ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
       if (data.size() >= 9) {
         uint8_t result = data[7];
         ESP_LOGI(TAG, "Switch control result: %s", result == 0x00 ? "SUCCESS" : "FAILED");
@@ -323,7 +330,7 @@ void SeplosBmsBle::decode(const std::vector<uint8_t> &data) {
       break;
     default:
       ESP_LOGW(TAG, "Unhandled response received (function 0x%02X): %s", function,
-               format_hex_pretty(&data.front(), data.size()).c_str());
+               format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
   }
 
   // Send next command after each received frame
@@ -336,7 +343,7 @@ void SeplosBmsBle::decode(const std::vector<uint8_t> &data) {
 
 void SeplosBmsBle::decode_manufacturer_info_data_(const std::vector<uint8_t> &data) {
   ESP_LOGI(TAG, "Hardware version frame (%zu bytes) received", data.size());
-  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());
+  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
 
   // Expected frame size: 7 (header) + 35 (data) + 2 (CRC) + 1 (EOF) = 45 bytes
   if (data.size() < 45) {
@@ -352,7 +359,9 @@ void SeplosBmsBle::decode_manufacturer_info_data_(const std::vector<uint8_t> &da
   hardware_version.erase(hardware_version.find_last_not_of(' ') + 1);
   this->publish_state_(this->hardware_version_text_sensor_, hardware_version);
 
-  this->publish_state_(this->software_version_text_sensor_, std::to_string(data[37]) + "." + std::to_string(data[38]));
+  char version_buf[8];
+  snprintf(version_buf, sizeof(version_buf), "%u.%u", data[37], data[38]);
+  this->publish_state_(this->software_version_text_sensor_, version_buf);
 
   ESP_LOGI(TAG, "CAN Protocol: %s", this->interpret_can_protocol(data[39]).c_str());
 
@@ -435,7 +444,7 @@ void SeplosBmsBle::decode_settings_data_(const std::vector<uint8_t> &data) {
   auto seplos_get_16bit = [&](size_t i) -> uint16_t { return (uint16_t(data[i]) << 8) | uint16_t(data[i + 1]); };
 
   ESP_LOGI(TAG, "Settings frame (%zu bytes) received", data.size());
-  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());
+  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
 
   if (data.size() < 145) {
     ESP_LOGW(TAG, "Settings frame too short (%d bytes)", data.size());
@@ -688,7 +697,7 @@ void SeplosBmsBle::decode_parallel_data_(const std::vector<uint8_t> &data) {
   };
 
   ESP_LOGI(TAG, "Parallel data frame (%zu bytes) received", data.size());
-  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());
+  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
 
   if (data.size() < 58) {
     ESP_LOGW(TAG, "Parallel data frame too short (%d bytes)", data.size());
@@ -857,7 +866,7 @@ void SeplosBmsBle::decode_single_machine_data_(const std::vector<uint8_t> &data)
   };
 
   ESP_LOGI(TAG, "Status frame (%zu bytes) received", data.size());
-  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());
+  ESP_LOGD(TAG, "  %s", format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
 
   if (data.size() < 60) {
     ESP_LOGW(TAG, "Status frame too short (%d bytes)", data.size());
@@ -1162,8 +1171,9 @@ void SeplosBmsBle::decode_single_machine_data_(const std::vector<uint8_t> &data)
   }
 
   if (protection_offset + 24 < data.size()) {
-    ESP_LOGD(TAG, "Remaining bytes: %s",
-             format_hex_pretty(&data[protection_offset + 24], data.size() - protection_offset - 24 - 3).c_str());
+    ESP_LOGD(
+        TAG, "Remaining bytes: %s",
+        format_hex_pretty(&data[protection_offset + 24], data.size() - protection_offset - 24 - 3).c_str());  // NOLINT
   }
 }
 
@@ -1299,14 +1309,14 @@ bool SeplosBmsBle::send_command(uint8_t function, const std::vector<uint8_t> &pa
   data.push_back(0x0d);             // EOF (0x0D)
 
   ESP_LOGD(TAG, "Send command (handle 0x%02X): %s", this->char_command_handle_,
-           format_hex_pretty(&data.front(), data.size()).c_str());
+           format_hex_pretty(&data.front(), data.size()).c_str());  // NOLINT
 
   auto status =
       esp_ble_gattc_write_char(this->parent_->get_gattc_if(), this->parent_->get_conn_id(), this->char_command_handle_,
                                data.size(), &data.front(), ESP_GATT_WRITE_TYPE_NO_RSP, ESP_GATT_AUTH_REQ_NONE);
 
   if (status) {
-    ESP_LOGW(TAG, "[%s] esp_ble_gattc_write_char failed, status=%d", this->parent_->address_str().c_str(), status);
+    ESP_LOGW(TAG, "[%s] esp_ble_gattc_write_char failed, status=%d", ADDR_STR(this->parent_->address_str()), status);
   }
 
   return (status == 0);

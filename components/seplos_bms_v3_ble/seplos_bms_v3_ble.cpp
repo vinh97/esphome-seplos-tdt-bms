@@ -1,8 +1,15 @@
 #include "seplos_bms_v3_ble.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/version.h"
 #include "../seplos_bms_v3_ble_pack/seplos_bms_v3_ble_pack.h"
 #include <cmath>
+
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 12, 0)
+#define ADDR_STR(x) x
+#else
+#define ADDR_STR(x) (x).c_str()
+#endif
 
 namespace esphome {
 namespace seplos_bms_v3_ble {
@@ -74,7 +81,7 @@ void SeplosBmsV3Ble::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if
           this->parent_->get_characteristic(SEPLOS_BMS_V3_SERVICE_UUID, SEPLOS_BMS_V3_NOTIFY_CHARACTERISTIC_UUID);
       if (char_notify == nullptr) {
         ESP_LOGE(TAG, "[%s] No notify service found at device, not a Seplos BMS V3..?",
-                 this->parent_->address_str().c_str());
+                 ADDR_STR(this->parent_->address_str()));
         break;
       }
       this->char_notify_handle_ = char_notify->handle;
@@ -89,7 +96,7 @@ void SeplosBmsV3Ble::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if
           this->parent_->get_characteristic(SEPLOS_BMS_V3_SERVICE_UUID, SEPLOS_BMS_V3_CONTROL_CHARACTERISTIC_UUID);
       if (char_command == nullptr) {
         ESP_LOGE(TAG, "[%s] No control service found at device, not a Seplos BMS V3..?",
-                 this->parent_->address_str().c_str());
+                 ADDR_STR(this->parent_->address_str()));
         break;
       }
       this->char_command_handle_ = char_command->handle;
@@ -107,7 +114,7 @@ void SeplosBmsV3Ble::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if
     }
     case ESP_GATTC_NOTIFY_EVT: {
       ESP_LOGVV(TAG, "Notification received: %s",
-                format_hex_pretty(param->notify.value, param->notify.value_len).c_str());
+                format_hex_pretty(param->notify.value, param->notify.value_len).c_str());  // NOLINT
       this->assemble(param->notify.value, param->notify.value_len);
       break;
     }
@@ -123,7 +130,7 @@ void SeplosBmsV3Ble::dump_config() {
 
 void SeplosBmsV3Ble::update() {
   if (this->node_state != espbt::ClientState::ESTABLISHED) {
-    ESP_LOGW(TAG, "[%s] Not connected", this->parent_->address_str().c_str());
+    ESP_LOGW(TAG, "[%s] Not connected", ADDR_STR(this->parent_->address_str()));
     return;
   }
 
@@ -154,7 +161,12 @@ void SeplosBmsV3Ble::assemble(const uint8_t *data, uint16_t length) {
 
   // Check if we have a complete ModBus frame
   if (this->frame_buffer_.size() >= 5) {
-    uint16_t data_len = this->frame_buffer_[2];
+    uint8_t function = this->frame_buffer_[1];
+    uint16_t data_len = 0;
+
+    if ((function & 0x80) == 0) {
+      data_len = this->frame_buffer_[2];
+    }
 
     uint16_t expected_length = 3 + data_len + 2;  // header + data + CRC
 
@@ -329,7 +341,7 @@ void SeplosBmsV3Ble::decode_eib_data_(const std::vector<uint8_t> &data) {
   std::string hex_str = "";
   for (size_t i = 0; i < std::min((size_t) 32, data.size()); i++) {
     char hex[4];
-    sprintf(hex, "%02X ", data[i]);
+    sprintf(hex, "%02X ", data[i]);  // NOLINT
     hex_str += hex;
   }
   ESP_LOGD(TAG, "EIB raw data (first 32 bytes): %s", hex_str.c_str());
@@ -549,7 +561,7 @@ bool SeplosBmsV3Ble::send_command_(uint8_t function, const std::vector<uint8_t> 
     return false;
   }
 
-  ESP_LOGD(TAG, "Sending command 0x%02X with payload: %s", function, format_hex_pretty(payload).c_str());
+  ESP_LOGD(TAG, "Sending command 0x%02X with payload: %s", function, format_hex_pretty(payload).c_str());  // NOLINT
 
   auto status = esp_ble_gattc_write_char(this->parent_->get_gattc_if(), this->parent_->get_conn_id(),
                                          this->char_command_handle_, payload.size(), (uint8_t *) payload.data(),
